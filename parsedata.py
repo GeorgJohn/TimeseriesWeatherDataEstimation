@@ -60,6 +60,15 @@ class ParseData(object):
 
     selected_features = [0, 1, 5, 7, 8, 10, 11, 14, 15, 16, 20]
 
+    def __init__(self):
+
+        # normalization values
+        self.x_data_mean = 0.0
+        self.x_data_std = 1.0
+
+        self.y_data_mean = 0.0
+        self.y_data_std = 1.0
+
     def parse(self, data):
 
         # update header of data frame
@@ -133,6 +142,28 @@ class ParseData(object):
         y_choice = np.concatenate([y[non_rain_days], y[rain_days]], axis=0)
         x_choice = np.concatenate([x[non_rain_days, :, :], x[rain_days, :, :]], axis=0)
 
+        """shuffle data"""
+        indices = np.arange(y_choice.shape[0])
+        rng.shuffle(indices)
+
+        y_choice = y_choice[indices]
+        x_choice = x_choice[indices, :, :]
+
+        """split data in train and test"""
+        split_fraction = 0.8
+        train_split = int(split_fraction * y_choice.shape[0])
+
+        # train data
+        x_train = x_choice[0:train_split, :, :]
+        y_train = y_choice[0:train_split]
+
+        # validation data
+        x_val = x_choice[train_split:, :, :]
+        y_val = y_choice[train_split:]
+
+        """normalize data"""
+
+
         # test
         n_non_rain_days = non_rain_days.shape[0]
         n_rainy_days = rain_days.shape[0]
@@ -145,8 +176,21 @@ class ParseData(object):
 
         return None, None
 
-    @staticmethod
-    def normalize(data, train_split):
-        data_mean = data[:train_split].mean(axis=0)
-        data_std = data[:train_split].std(axis=0)
-        return (data - data_mean) / data_std
+    def normalize(self, data, type_, set_params=False):
+        if set_params:
+            if type_ == 'features':
+                self.x_data_mean = np.mean(data, axis=0)
+                self.x_data_std = np.std(data, axis=0)
+            elif type_ == 'labels':
+                self.y_data_mean = np.mean(data, axis=0)
+                self.y_data_std = np.std(data, axis=0)
+            else:
+                raise ValueError(f'unknown data type: {type_}')
+
+        if type_ == 'features':
+            normalized_data = (data - self.x_data_mean) / self.x_data_std
+        elif type_ == 'labels':
+            normalized_data = (data - self.y_data_mean) / self.y_data_std
+        else:
+            raise ValueError(f'unknown data type: {type_}')
+        return normalized_data
